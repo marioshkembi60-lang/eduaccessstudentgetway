@@ -5,7 +5,11 @@ const mongoose = require("mongoose");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const MONGO_URI = process.env.MONGO_URI || process.env.MONGODB_URI;
+const MONGO_URI =
+  process.env.MONGO_URI ||
+  process.env.MONGODB_URI ||
+  process.env.DATABASE_URL ||
+  process.env.MONGO_URL;
 const MONGO_DB_NAME = process.env.MONGO_DB_NAME || "projectSchool";
 
 const loginRecordSchema = new mongoose.Schema(
@@ -28,7 +32,9 @@ let dbPromise;
 
 function connectToDatabase() {
   if (!MONGO_URI) {
-    throw new Error("MONGO_URI/MONGODB_URI is missing.");
+    throw new Error(
+      "Mongo URI is missing. Set one of: MONGO_URI, MONGODB_URI, DATABASE_URL, MONGO_URL."
+    );
   }
 
   if (mongoose.connection.readyState === 1) {
@@ -105,8 +111,11 @@ app.post("/signin", async (req, res) => {
     return res.render("success", { email });
   } catch (error) {
     console.error("MongoDB save failed:", error.message);
+    const missingEnvError = error.message.toLowerCase().includes("mongo uri is missing");
     return res.status(500).render("password", {
-      error: "Unable to save data to database. Check MongoDB connection.",
+      error: missingEnvError
+        ? "Server config error on Vercel: set MONGO_URI in Environment Variables."
+        : "Unable to save data to database. Check MongoDB connection.",
       email,
     });
   }
